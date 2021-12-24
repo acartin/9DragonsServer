@@ -1,21 +1,30 @@
 const express = require('express');
-const router = express.Router(); 
-
-// import controller
-const { signup, accountActivation, signin, forgotPassword, resetPassword } = require('../controllers/auth');
+const {
+  accountActivation,
+  signup,
+  login,
+  logout,
+  getMe,
+  forgotPassword,
+  resetPassword  
+} = require('../controllers/auth');
 
 //import validators
 const {userSignupValidator,userSigninValidator, forgotPasswordValidator, resetPasswordValidator} = require('../validators/auth')
-
 const {runValidation} = require('../validators')
 
-router.post('/signup',userSignupValidator,runValidation, signup);
+
+const router = express.Router();
+
+const { protect } = require('../middleware/auth');
+
+//router.post('/signup', signup);
 router.post('/account-activation',accountActivation);
-router.post('/jwt/login',userSigninValidator,runValidation, signin);
-
-//forgot reset password
-router.put('/forgot-password',forgotPasswordValidator, runValidation, forgotPassword );
-router.put('/reset-password',resetPasswordValidator, runValidation, resetPassword );
-
+router.post('/signup',userSignupValidator,runValidation, signup);
+router.post('/login', login);
+router.get('/logout', logout);
+router.get('/me', protect, getMe);
+router.post('/forgotpassword', forgotPasswordValidator,runValidation, forgotPassword);
+router.put('/resetpassword',resetPassword );
 
 module.exports = router;

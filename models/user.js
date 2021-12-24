@@ -1,78 +1,91 @@
-const mongoose = require('mongoose');
 const crypto = require('crypto');
-// user schema
-const userScheama = new mongoose.Schema(
-    {
-        name: {
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const UserSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Please add a name']
+  },
+  email: {
+    type: String,
+    required: [true, 'Please add an email'],
+    unique: true,
+    match: [
+      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+      'Please add a valid email'
+    ]
+  },
+  role: {
+    type: String,
+    //enum: ['user', 'publisher','staff'],
+    default: 'user'
+  },
+  password: {
+    type: String,
+    required: [true, 'Please add a password'],
+    minlength: 6,
+    select: false //esto es para que en los selects no aparezca el password
+  },
+  resetPasswordToken: {
             type: String,
-            trim: true,
-            required: true,
-            max: 32
-        },
-        email: {
-            type: String,
-            trim: true,
-            required: true,
-            unique: true,
-            lowercase: true
-        },
-        hashed_password: {
-            type: String,
-            required: true
-        },
-        salt: String,
-        role: {
-            type: String,
-            default: 'subscriber'
-        },
-        resetPasswordLink: {
-            data: String,
             default: ''
-        },
-        ability: {
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  ability: {
             type: [{
                 action : String,
                 subject : String
             }],
-            default: undefined
+            default: {
+              action :'read',
+              subject : 'public'
+          }
         }
-    },
-    { timestamps: true }
-);
+});
 
-// virtual
-userScheama
-    .virtual('password')
-    .set(function(password) {
-        this._password = password;
-        this.salt = this.makeSalt();
-        this.hashed_password = this.encryptPassword(password);
-    })
-    .get(function() {
-        return this._password;
-    });
+// Encrypt password using bcrypt
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    next();
+  }
 
-// methods
-userScheama.methods = {
-    authenticate: function(plainText) {
-        return this.encryptPassword(plainText) === this.hashed_password;
-    },
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
 
-    encryptPassword: function(password) {
-        if (!password) return '';
-        try {
-            return crypto
-                .createHmac('sha1', this.salt)
-                .update(password)
-                .digest('hex');
-        } catch (err) {
-            return '';
-        }
-    },
-
-    makeSalt: function() {
-        return Math.round(new Date().valueOf() * Math.random()) + '';
-    }
+// Sign JWT and return
+UserSchema.methods.getSignedJwtToken = function() {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE
+  });
 };
 
-module.exports = mongoose.model('User', userScheama);
+
+// Match user entered password to hashed password in database
+UserSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate and hash password token
+//UserSchema.methods.getResetPasswordToken = function() {
+  // Generate token
+  //const resetToken = crypto.randomBytes(20).toString('hex');
+
+  // Hash token and set to resetPasswordToken field
+  //this.resetPasswordToken = crypto
+   // .createHash('sha256')
+   // .update(resetToken)
+   // .digest('hex');
+
+  // Set expire
+  //this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+ // return resetToken;
+//};
+
+module.exports = mongoose.model('User', UserSchema);

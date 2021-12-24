@@ -1,39 +1,58 @@
-const express = require('express');
-const morgan = require('morgan');
+const express = require('express')
+const dotenv = require('dotenv')
+const morgan = require('morgan')
+const connectDB = require('./config/db')
+const color = require('colors')
+const errorHandler = require('./middleware/error')
+const cookieParser = require('cookie-parser')
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-require('dotenv').config();
 
-const app = express();
 
-// connect to db
-mongoose
-    .connect(process.env.DATABASE, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-        
-    })
-    .then(() => console.log('DB connected'))
-    .catch(err => console.log('DB CONNECTION ERROR: ', err));
+// Load env vars
+dotenv.config({ path: './config/config.env' });
 
-// import routes
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
+//connect to database
+connectDB()
 
-// app middlewares
-app.use(morgan('dev'));
-app.use(bodyParser.json());
-//app.use(cors()); // allows all origins
-if ((process.env.NODE_ENV = 'development')) {
-    app.use(cors({ origin: `http://localhost:3000` }));
+
+//route files
+const bootcamps = require('./routes/bootcamps')
+const courses = require('./routes/courses')
+const auth = require('./routes/auth')
+
+const app = express() //
+
+//Body parser
+app.use(express.json())
+
+//Cookie parser
+app.use(cookieParser())
+
+// Dev Logging middleware
+if(process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'))
+  app.use(cors({ origin: `http://localhost:3000` }));
 }
 
-// middleware
-app.use('/api', authRoutes);
-app.use('/api', userRoutes);
+//Mount routers
+app.use('/api/v1/bootcamps', bootcamps)
+app.use('/api/v1/courses', courses)
+app.use('/api/v1/auth', auth)
 
-const port = process.env.PORT || 8000;
-app.listen(port, () => {
-    console.log(`API is running on port ${port}`);
-});
+//Mount error handler .
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(
+  PORT,
+  console.log(
+    `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`.yellow.bold )
+);
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err, promise) =>{
+  console.log(`Error: ${err.message}`.red)
+  //close server and exit process
+  server.close(() => process.exit(1))
+})
