@@ -19,6 +19,7 @@ connectDB()
 const bootcamps = require('./routes/bootcamps')
 const courses = require('./routes/courses')
 const auth = require('./routes/auth')
+const betSlips = require('./routes/betSlips')
 
 const app = express() //
 
@@ -38,6 +39,7 @@ if(process.env.NODE_ENV === 'development') {
 app.use('/api/v1/bootcamps', bootcamps)
 app.use('/api/v1/courses', courses)
 app.use('/api/v1/auth', auth)
+app.use('/api/v1/betSlips', betSlips)
 
 //Mount error handler .
 app.use(errorHandler);
